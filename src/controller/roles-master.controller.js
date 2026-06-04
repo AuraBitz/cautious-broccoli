@@ -3,24 +3,17 @@ const { asyncHandler } = require('../utils');
 const { parseId, buildListPayload } = require('./payload/request.payload');
 
 const list = asyncHandler(async (req, res) => {
-  const result = await usecase.clientManagement.list(
-    buildListPayload(req.body)
-  );
-  res.status(result.statusCode).json(result);
-});
-
-const getById = asyncHandler(async (req, res) => {
-  const result = await usecase.clientManagement.getById(parseId(req.params.id));
+  const result = await usecase.rolesMaster.list(buildListPayload(req.body));
   res.status(result.statusCode).json(result);
 });
 
 const create = asyncHandler(async (req, res) => {
-  const result = await usecase.clientManagement.create(req.body);
+  const result = await usecase.rolesMaster.create(req.body);
   res.status(result.statusCode).json(result);
 });
 
 const update = asyncHandler(async (req, res) => {
-  const result = await usecase.clientManagement.update(
+  const result = await usecase.rolesMaster.update(
     parseId(req.params.id),
     req.body
   );
@@ -28,8 +21,8 @@ const update = asyncHandler(async (req, res) => {
 });
 
 const remove = asyncHandler(async (req, res) => {
-  const result = await usecase.clientManagement.remove(parseId(req.params.id));
+  const result = await usecase.rolesMaster.remove(parseId(req.params.id));
   res.status(result.statusCode).json(result);
 });
 
-module.exports = { list, getById, create, update, remove };
+module.exports = { list, create, update, remove };

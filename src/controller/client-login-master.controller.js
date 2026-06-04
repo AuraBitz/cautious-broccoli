@@ -3,6 +3,11 @@ const config = require('../config/Development');
 const { asyncHandler, cookieOptions } = require('../utils');
 const { parseId, buildListPayload } = require('./payload/request.payload');
 
+const getById = asyncHandler(async (req, res) => {
+  const result = await usecase.clientLoginMaster.getById(parseId(req.params.id));
+  res.status(result.statusCode).json(result);
+});
+
 const list = asyncHandler(async (req, res) => {
   const result = await usecase.clientLoginMaster.list(
     buildListPayload(req.body)
@@ -53,4 +58,13 @@ const me = asyncHandler(async (req, res) => {
   res.status(result.statusCode).json(result);
 });
 
-module.exports = { list, create, update, remove, login, logout, me };
+module.exports = {
+  list,
+  getById,
+  create,
+  update,
+  remove,
+  login,
+  logout,
+  me,
+};

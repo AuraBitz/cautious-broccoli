@@ -11,6 +11,8 @@ const createRoutes = () => {
     subModuleMaster,
     plansMaster,
     projectMaster,
+    rolesMaster,
+    plansTracker,
   } = controller;
 
   router.use(authMiddleware);
@@ -21,11 +23,13 @@ const createRoutes = () => {
   router.post('/client-login/logout', clientLoginMaster.logout);
   router.get('/client-login/me', clientLoginMaster.me);
   router.post('/client-login/list', clientLoginMaster.list);
+  router.get('/client-login/:id', clientLoginMaster.getById);
   router.post('/client-login', clientLoginMaster.create);
   router.patch('/client-login/:id', clientLoginMaster.update);
   router.delete('/client-login/:id', clientLoginMaster.remove);
 
   router.post('/client-management/list', clientManagement.list);
+  router.get('/client-management/:id', clientManagement.getById);
   router.post('/client-management', clientManagement.create);
   router.patch('/client-management/:id', clientManagement.update);
   router.delete('/client-management/:id', clientManagement.remove);
@@ -41,14 +45,24 @@ const createRoutes = () => {
   router.delete('/sub-modules/:id', subModuleMaster.remove);
 
   router.post('/plans/list', plansMaster.list);
+  router.get('/plans/:id', plansMaster.getById);
   router.post('/plans', plansMaster.create);
   router.patch('/plans/:id', plansMaster.update);
   router.delete('/plans/:id', plansMaster.remove);
 
   router.post('/projects/list', projectMaster.list);
+  router.get('/projects/:id', projectMaster.getById);
   router.post('/projects', projectMaster.create);
   router.patch('/projects/:id', projectMaster.update);
   router.delete('/projects/:id', projectMaster.remove);
+
+  router.post('/plans-tracker/list', plansTracker.list);
+  router.post('/plans-tracker/get-plan', plansTracker.getPlan);
+
+  router.post('/roles-master/list', rolesMaster.list);
+  router.post('/roles-master', rolesMaster.create);
+  router.patch('/roles-master/:id', rolesMaster.update);
+  router.delete('/roles-master/:id', rolesMaster.remove);
 
   return router;
 };

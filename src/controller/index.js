@@ -6,6 +6,8 @@ const parentModulesMaster = require('./parent-modules-master.controller');
 const subModuleMaster = require('./sub-module-master.controller');
 const plansMaster = require('./plans-master.controller');
 const projectMaster = require('./project-master.controller');
+const rolesMaster = require('./roles-master.controller');
+const plansTracker = require('./plans-tracker.controller');
 
 const healthCheck = async (req, res, next) => {
   try {
@@ -35,4 +37,6 @@ module.exports = {
   subModuleMaster,
   plansMaster,
   projectMaster,
+  rolesMaster,
+  plansTracker,
 };

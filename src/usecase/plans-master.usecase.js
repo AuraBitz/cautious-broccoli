@@ -10,9 +10,11 @@ const {
 const { listQuerySchema, intIdArray } = require('./common.schemas');
 
 const repo = dataaccess.plansMaster;
+const projectRepo = dataaccess.projectMaster;
 const parentRepo = dataaccess.parentModulesMaster;
 
 const createSchema = Joi.object({
+  project_id: Joi.number().integer().positive().required(),
   plan_type: Joi.string().trim().min(1).required(),
   plan_valid_days: Joi.number().integer().min(0).default(0),
   plan_modules_id: intIdArray,
@@ -23,6 +25,7 @@ const createSchema = Joi.object({
 });
 
 const updateSchema = Joi.object({
+  project_id: Joi.number().integer().positive().allow(null),
   plan_type: Joi.string().trim().min(1),
   plan_valid_days: Joi.number().integer().min(0),
   plan_modules_id: intIdArray,
@@ -43,6 +46,42 @@ const assertModulesExist = async (moduleIds) => {
   }
 };
 
+const assertProjectExists = async (projectId) => {
+  if (projectId == null) return;
+  const exists = await projectRepo.existsById(projectId);
+  if (!exists) {
+    throw new AppError('project_id not found', 400, 'INVALID_PROJECT');
+  }
+};
+
+const pickPlanPayload = (data) => {
+  const { project_id: _projectId, ...planData } = data;
+  return planData;
+};
+
+const withProjectMeta = async (row) => {
+  if (!row) return row;
+  if (row.project_name != null) return row;
+  const project = await projectRepo.findProjectByPlanId(row.id);
+  return {
+    ...row,
+    project_name: project?.name ?? null,
+    project_id: project?.id ?? null,
+  };
+};
+
+const getById = async (id) => {
+  const row = await repo.findById(id);
+  if (!row) {
+    throw new AppError('Plan not found', 404, 'NOT_FOUND');
+  }
+  const project = await projectRepo.findProjectByPlanId(id);
+  return itemResponse('Plan fetched', {
+    ...row,
+    project_id: project?.id ?? null,
+  });
+};
+
 const list = async (listPayload) => {
   const query = validateSchema(listQuerySchema, listPayload);
   const result = await repo.list(query);
@@ -51,9 +90,15 @@ const list = async (listPayload) => {
 
 const create = async (payload) => {
   const data = validateSchema(createSchema, payload);
+  await assertProjectExists(data.project_id);
   await assertModulesExist(data.plan_modules_id);
-  const row = await repo.create(data);
-  return itemResponse('Plan created', row, 201);
+
+  const row = await repo.create(pickPlanPayload(data));
+  await projectRepo.removePlanFromAllProjects(row.id);
+  await projectRepo.addPlanToProject(data.project_id, row.id);
+
+  const enriched = await withProjectMeta(await repo.findById(row.id));
+  return itemResponse('Plan created', enriched, 201);
 };
 
 const update = async (id, payload) => {
@@ -65,11 +110,33 @@ const update = async (id, payload) => {
   if (data.plan_modules_id) {
     await assertModulesExist(data.plan_modules_id);
   }
-  const row = await repo.update(id, data);
-  return itemResponse('Plan updated', row);
+  if (data.project_id !== undefined) {
+    await assertProjectExists(data.project_id);
+  }
+
+  const currentProject = await projectRepo.findProjectByPlanId(id);
+  const oldProjectId = currentProject?.id ?? null;
+
+  const row = await repo.update(id, pickPlanPayload(data));
+
+  if (data.project_id !== undefined) {
+    await projectRepo.syncPlanProject(
+      id,
+      data.project_id,
+      oldProjectId
+    );
+  }
+
+  const enriched = await withProjectMeta(await repo.findById(id));
+  return itemResponse('Plan updated', enriched);
 };
 
 const remove = async (id) => {
+  const existing = await repo.findById(id);
+  if (!existing) {
+    throw new AppError('Plan not found', 404, 'NOT_FOUND');
+  }
+  await projectRepo.removePlanFromAllProjects(id);
   const deleted = await repo.remove(id);
   if (!deleted) {
     throw new AppError('Plan not found', 404, 'NOT_FOUND');
@@ -77,4 +144,4 @@ const remove = async (id) => {
   return deleteResponse('Plan deleted', deleted.id);
 };
 
-module.exports = { list, create, update, remove };
+module.exports = { list, getById, create, update, remove };

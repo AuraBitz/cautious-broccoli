@@ -45,6 +45,15 @@ const loginSchema = Joi.object({
 const hashPassword = (password) => bcrypt.hash(password, SALT_ROUNDS);
 const comparePassword = (plain, hash) => bcrypt.compare(plain, hash);
 
+const getById = async (id) => {
+  const row = await loginRepo.findById(id);
+  if (!row) {
+    throw new AppError('Login account not found', 404, 'NOT_FOUND');
+  }
+  const { password, ...safe } = row;
+  return itemResponse('Login account fetched', safe);
+};
+
 const list = async (listPayload) => {
   const query = validateSchema(listQuerySchema, listPayload);
   const result = await loginRepo.list(query);
@@ -163,4 +172,13 @@ const me = async (userId) => {
   return itemResponse('Profile fetched', account);
 };
 
-module.exports = { list, create, update, remove, login, logout, me };
+module.exports = {
+  list,
+  getById,
+  create,
+  update,
+  remove,
+  login,
+  logout,
+  me,
+};

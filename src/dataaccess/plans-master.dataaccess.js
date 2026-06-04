@@ -1,4 +1,8 @@
 const createCrudRepository = require('./crud-repository');
+const { query } = require('../connectivity/postgres');
+const { buildListQuery } = require('../utils/list-query-builder');
+
+const TABLE = 'plans_master';
 
 const COLUMNS = [
   'id',
@@ -13,8 +17,29 @@ const COLUMNS = [
   'updated_by',
 ];
 
+const PROJECT_NAME_SQL = `(
+  SELECT p.name
+  FROM project_master p
+  WHERE ${TABLE}.id = ANY(COALESCE(p.plan_ids, '{}'))
+  LIMIT 1
+) AS project_name`;
+
+const LIST_SELECT_COLUMNS = [...COLUMNS, PROJECT_NAME_SQL];
+
+const FILTER_FIELDS = [
+  'id',
+  'plan_type',
+  'plan_valid_days',
+  'amount',
+  'discount_amount',
+  'created_at',
+  'created_by',
+  'updated_at',
+  'updated_by',
+];
+
 const repo = createCrudRepository({
-  table: 'plans_master',
+  table: TABLE,
   columns: COLUMNS,
   insertColumns: [
     'plan_type',
@@ -34,19 +59,43 @@ const repo = createCrudRepository({
     'updated_by',
   ],
   defaultSortField: 'created_at',
-  filterFields: [
-    'id',
-    'plan_type',
-    'plan_valid_days',
-    'amount',
-    'discount_amount',
-    'created_at',
-    'created_by',
-    'updated_at',
-    'updated_by',
-  ],
+  filterFields: FILTER_FIELDS,
   sortFields: COLUMNS,
 });
+
+const list = async (body) => {
+  const built = buildListQuery({
+    table: TABLE,
+    selectColumns: LIST_SELECT_COLUMNS,
+    allowedFilterFields: FILTER_FIELDS,
+    allowedSortFields: COLUMNS,
+    defaultSortField: 'created_at',
+    body,
+  });
+
+  const [rowsResult, countResult] = await Promise.all([
+    query(built.listQuery, built.listValues),
+    query(built.countQuery, built.countValues),
+  ]);
+
+  return {
+    rows: rowsResult.rows,
+    total: countResult.rows[0].total,
+    skip: built.skip,
+    limit: built.limit,
+    sort: built.sort,
+  };
+};
+
+const findByIdWithProject = async (id) => {
+  const result = await query(
+    `SELECT ${COLUMNS.join(', ')}, ${PROJECT_NAME_SQL}
+     FROM ${TABLE}
+     WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+};
 
 const create = async (payload) =>
   repo.create({
@@ -60,9 +109,8 @@ const update = async (id, payload) =>
 
 const findByIds = async (ids = []) => {
   if (!ids.length) return [];
-  const { query } = require('../connectivity/postgres');
   const result = await query(
-    `SELECT id, plan_valid_days FROM plans_master WHERE id = ANY($1::int[])`,
+    `SELECT id, plan_valid_days FROM ${TABLE} WHERE id = ANY($1::int[])`,
     [ids]
   );
   return result.rows;
@@ -70,6 +118,8 @@ const findByIds = async (ids = []) => {
 
 module.exports = {
   ...repo,
+  list,
+  findById: findByIdWithProject,
   create,
   update,
   findByIds,

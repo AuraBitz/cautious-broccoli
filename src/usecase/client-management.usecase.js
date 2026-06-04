@@ -14,6 +14,7 @@ const clientRepo = dataaccess.clientManagement;
 const loginRepo = dataaccess.clientLoginMaster;
 
 const createSchema = Joi.object({
+  company_name: Joi.string().trim().min(1).required(),
   owner_name: Joi.string().trim().min(1).required(),
   mobile: Joi.string().trim().allow(null, ''),
   email: Joi.string().trim().email().allow(null, ''),
@@ -31,8 +32,9 @@ const createSchema = Joi.object({
   login_id: Joi.number().integer().positive().allow(null),
 });
 
-const updateSchema = createSchema.fork(['owner_name'], (field) =>
-  field.optional()
+const updateSchema = createSchema.fork(
+  ['company_name', 'owner_name'],
+  (field) => field.optional()
 );
 
 const assertLoginExists = async (loginId) => {
@@ -65,12 +67,22 @@ const create = async (payload) => {
 
   const prepared = await planBusiness.preparePlanOnSave(data);
   const row = await clientRepo.create(prepared);
-  await planBusiness.deactivateLoginIfExpired(
-    row.login_id,
-    row.plan_remain_days === 0
-  );
 
-  const synced = await planBusiness.syncClientPlan(row);
+  if (row.login_id && row.plan_id) {
+    await planBusiness.recordPlanPurchase({
+      clientLoginId: row.login_id,
+      planId: row.plan_id,
+    });
+  } else {
+    await planBusiness.deactivateLoginIfExpired(
+      row.login_id,
+      row.plan_remain_days === 0
+    );
+  }
+
+  const synced = await planBusiness.syncClientPlan(
+    await clientRepo.findById(row.id)
+  );
   return itemResponse('Client created', synced, 201);
 };
 
@@ -102,13 +114,40 @@ const update = async (id, payload) => {
   }
 
   const row = await clientRepo.update(id, updatePayload);
-  await planBusiness.deactivateLoginIfExpired(
-    row.login_id,
-    row.plan_remain_days === 0
-  );
 
-  const synced = await planBusiness.syncClientPlan(row);
+  const planChanged =
+    data.plan_id !== undefined &&
+    Number(data.plan_id) !== Number(existing.plan_id);
+
+  if (planChanged && row?.login_id && row?.plan_id) {
+    await planBusiness.recordPlanPurchase({
+      clientLoginId: row.login_id,
+      planId: row.plan_id,
+    });
+  } else {
+    await planBusiness.deactivateLoginIfExpired(
+      row.login_id,
+      row.plan_remain_days === 0
+    );
+    await planBusiness.activateLoginIfActive(
+      row.login_id,
+      row.plan_remain_days > 0
+    );
+  }
+
+  const synced = await planBusiness.syncClientPlan(
+    await clientRepo.findById(id)
+  );
   return itemResponse('Client updated', synced);
+};
+
+const getById = async (id) => {
+  const row = await clientRepo.findById(id);
+  if (!row) {
+    throw new AppError('Client not found', 404, 'NOT_FOUND');
+  }
+  const synced = await planBusiness.syncClientPlan(row);
+  return itemResponse('Client fetched', synced);
 };
 
 const remove = async (id) => {
@@ -119,4 +158,4 @@ const remove = async (id) => {
   return deleteResponse('Client deleted', deleted.id);
 };
 
-module.exports = { list, create, update, remove };
+module.exports = { list, getById, create, update, remove };

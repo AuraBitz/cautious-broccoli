@@ -6,6 +6,8 @@ const parentModulesMaster = require('./parent-modules-master.usecase');
 const subModuleMaster = require('./sub-module-master.usecase');
 const plansMaster = require('./plans-master.usecase');
 const projectMaster = require('./project-master.usecase');
+const rolesMaster = require('./roles-master.usecase');
+const plansTracker = require('./plans-tracker.usecase');
 
 const healthCheck = async () => {
   const data = await dataaccess.healthCheck();
@@ -23,4 +25,6 @@ module.exports = {
   subModuleMaster,
   plansMaster,
   projectMaster,
+  rolesMaster,
+  plansTracker,
 };

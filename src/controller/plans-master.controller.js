@@ -6,6 +6,11 @@ const {
   withActor,
 } = require('./payload/request.payload');
 
+const getById = asyncHandler(async (req, res) => {
+  const result = await usecase.plansMaster.getById(parseId(req.params.id));
+  res.status(result.statusCode).json(result);
+});
+
 const list = asyncHandler(async (req, res) => {
   const result = await usecase.plansMaster.list(buildListPayload(req.body));
   res.status(result.statusCode).json(result);
@@ -31,4 +36,4 @@ const remove = asyncHandler(async (req, res) => {
   res.status(result.statusCode).json(result);
 });
 
-module.exports = { list, create, update, remove };
+module.exports = { list, getById, create, update, remove };

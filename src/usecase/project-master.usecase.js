@@ -48,6 +48,14 @@ const list = async (listPayload) => {
   return listResponse('Project list fetched', result);
 };
 
+const getById = async (id) => {
+  const row = await repo.findById(id);
+  if (!row) {
+    throw new AppError('Project not found', 404, 'NOT_FOUND');
+  }
+  return itemResponse('Project fetched', row);
+};
+
 const create = async (payload) => {
   const data = validateSchema(createSchema, payload);
   await assertPlansExist(data.plan_ids);
@@ -76,4 +84,4 @@ const remove = async (id) => {
   return deleteResponse('Project deleted', deleted.id);
 };
 
-module.exports = { list, create, update, remove };
+module.exports = { list, getById, create, update, remove };

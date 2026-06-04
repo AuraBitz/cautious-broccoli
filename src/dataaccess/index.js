@@ -6,6 +6,8 @@ const parentModulesMaster = require('./parent-modules-master.dataaccess');
 const subModuleMaster = require('./sub-module-master.dataaccess');
 const plansMaster = require('./plans-master.dataaccess');
 const projectMaster = require('./project-master.dataaccess');
+const rolesMaster = require('./roles-master.dataaccess');
+const plansTracker = require('./plans-tracker.dataaccess');
 
 const healthCheck = async () => {
   await query('SELECT 1 AS ok');
@@ -23,4 +25,6 @@ module.exports = {
   subModuleMaster,
   plansMaster,
   projectMaster,
+  rolesMaster,
+  plansTracker,
 };
