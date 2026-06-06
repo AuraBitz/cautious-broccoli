@@ -8,7 +8,7 @@ const {
 const TABLE = 'client_management';
 const SELECT_COLUMNS = [
   'id',
-  'company_name',
+  'restaurant_id',
   'owner_name',
   'mobile',
   'email',
@@ -28,7 +28,7 @@ const SELECT_COLUMNS = [
 
 const LIST_SELECT_SQL = `
   cm.id,
-  cm.company_name,
+  cm.restaurant_id,
   cm.owner_name,
   cm.mobile,
   cm.email,
@@ -44,6 +44,7 @@ const LIST_SELECT_SQL = `
   cm.plan_remain_days,
   cm.plan_status,
   cm.login_id,
+  rm.restaurant_name,
   pm.name AS project_name,
   pl.plan_type AS plan_type,
   pl.amount AS plan_amount
@@ -51,13 +52,15 @@ const LIST_SELECT_SQL = `
 
 const FROM_JOIN_SQL = `
   FROM client_management cm
+  LEFT JOIN restaurant_master rm ON rm.id = cm.restaurant_id
   LEFT JOIN project_master pm ON pm.id = cm.project_id
   LEFT JOIN plans_master pl ON pl.id = cm.plan_id
 `;
 
 const FILTER_COLUMN_MAP = {
   id: 'cm.id',
-  company_name: 'cm.company_name',
+  restaurant_id: 'cm.restaurant_id',
+  restaurant_name: 'rm.restaurant_name',
   owner_name: 'cm.owner_name',
   mobile: 'cm.mobile',
   email: 'cm.email',
@@ -150,14 +153,14 @@ const findById = async (id) => {
 const create = async (payload) => {
   const result = await query(
     `INSERT INTO ${TABLE} (
-      company_name, owner_name, mobile, email, address, city, state, country,
+      restaurant_id, owner_name, mobile, email, address, city, state, country,
       plan_id, applied_at, project_id, plan_start_at, plan_remain_days,
       plan_status, login_id
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
     ) RETURNING ${SELECT_COLUMNS.join(', ')}`,
     [
-      payload.company_name,
+      payload.restaurant_id ?? null,
       payload.owner_name,
       payload.mobile || null,
       payload.email || null,
@@ -179,7 +182,7 @@ const create = async (payload) => {
 
 const update = async (id, payload) => {
   const allowed = [
-    'company_name',
+    'restaurant_id',
     'owner_name',
     'mobile',
     'email',
@@ -234,6 +237,17 @@ const findByLoginId = async (loginId) => {
   return result.rows[0] || null;
 };
 
+const findByRestaurantId = async (restaurantId) => {
+  const result = await query(
+    `SELECT ${LIST_SELECT_SQL}
+     ${FROM_JOIN_SQL}
+     WHERE cm.restaurant_id = $1
+     LIMIT 1`,
+    [restaurantId]
+  );
+  return result.rows[0] || null;
+};
+
 const updatePlanFields = async (id, { plan_remain_days, plan_status }) => {
   const result = await query(
     `UPDATE ${TABLE}
@@ -249,6 +263,7 @@ module.exports = {
   list,
   findById,
   findByLoginId,
+  findByRestaurantId,
   create,
   update,
   updatePlanFields,

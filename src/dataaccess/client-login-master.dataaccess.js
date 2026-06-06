@@ -7,6 +7,7 @@ const SELECT_COLUMNS = [
   'username',
   'email',
   'role',
+  'project_role_id',
   'created_at',
   'updated_at',
   'device_id',
@@ -14,6 +15,7 @@ const SELECT_COLUMNS = [
 ];
 
 const FILTER_FIELDS = [
+  'project_role_id',
   'id',
   'username',
   'email',
@@ -73,14 +75,15 @@ const findByUsernameOrEmail = async (identifier) => {
 
 const create = async (payload) => {
   const result = await query(
-    `INSERT INTO ${TABLE} (username, email, password, role, device_id, status)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO ${TABLE} (username, email, password, role, project_role_id, device_id, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING ${SELECT_COLUMNS.join(', ')}`,
     [
       payload.username,
       payload.email,
       payload.password,
       payload.role || 'client',
+      payload.project_role_id ?? null,
       payload.device_id || null,
       payload.status || 'active',
     ]
@@ -98,6 +101,7 @@ const update = async (id, payload) => {
     'email',
     'password',
     'role',
+    'project_role_id',
     'device_id',
     'status',
   ];

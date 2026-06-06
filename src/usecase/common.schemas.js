@@ -23,9 +23,15 @@ const intIdArray = Joi.array()
   .items(Joi.number().integer().positive())
   .default([]);
 
+const reportDownloadSchema = Joi.object({
+  start_date: Joi.string().trim().allow('', null),
+  end_date: Joi.string().trim().allow('', null),
+});
+
 module.exports = {
   listQuerySchema,
   optionalMasterStatusSchema,
   intIdArray,
   CLIENT_PLAN_STATUS,
+  reportDownloadSchema,
 };

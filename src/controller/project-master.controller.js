@@ -30,4 +30,18 @@ const remove = asyncHandler(async (req, res) => {
   res.status(result.statusCode).json(result);
 });
 
-module.exports = { list, getById, create, update, remove };
+const getPortalModules = asyncHandler(async (req, res) => {
+  const roleMasterId = req.query.roleId ?? req.query.roleMasterId ?? null;
+  const planId =
+    req.query.planId !== undefined && req.query.planId !== ''
+      ? Number(req.query.planId)
+      : null;
+  const result = await usecase.projectMaster.getPortalModules(
+    parseId(req.params.id),
+    roleMasterId != null ? Number(roleMasterId) : null,
+    planId
+  );
+  res.status(result.statusCode).json(result);
+});
+
+module.exports = { list, getById, create, update, remove, getPortalModules };

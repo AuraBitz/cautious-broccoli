@@ -32,4 +32,19 @@ const remove = asyncHandler(async (req, res) => {
   res.status(result.statusCode).json(result);
 });
 
-module.exports = { list, getById, create, update, remove };
+const downloadReport = asyncHandler(async (req, res) => {
+  const { buffer, filename } = await usecase.clientManagement.downloadReport(
+    req.body
+  );
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${filename}"`
+  );
+  res.send(Buffer.from(buffer));
+});
+
+module.exports = { list, getById, create, update, remove, downloadReport };

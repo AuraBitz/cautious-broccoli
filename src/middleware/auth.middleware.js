@@ -2,7 +2,7 @@ const { verifyAccessToken } = require('../utils/jwt-token');
 const { AppError } = require('../utils');
 const config = require('../config/Development');
 
-const LOGIN_PATH = '/client-login/login';
+const LOGIN_PATHS = ['/client-login/login', '/employee-login/login'];
 
 const extractToken = (req) => {
   const cookieToken = req.cookies?.[config.cookie.name];
@@ -18,7 +18,9 @@ const extractToken = (req) => {
 
 const isLoginRequest = (req) =>
   req.method === 'POST' &&
-  (req.path === LOGIN_PATH || req.path.endsWith(LOGIN_PATH));
+  LOGIN_PATHS.some(
+    (path) => req.path === path || req.path.endsWith(path)
+  );
 
 const hasLoginCredentials = (req) => {
   const { username, email, password } = req.body || {};
@@ -32,6 +34,7 @@ const attachUser = (req, decoded) => {
     email: decoded.email,
     role: decoded.role,
     device_id: decoded.device_id,
+    accountType: decoded.accountType ?? 'client',
   };
 };
 

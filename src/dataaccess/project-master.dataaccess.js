@@ -93,6 +93,45 @@ const syncPlanProject = async (planId, newProjectId, oldProjectId) => {
   }
 };
 
+const addModuleToProject = async (projectId, moduleId) => {
+  await query(
+    `UPDATE ${TABLE}
+     SET module_ids = CASE
+       WHEN $2 = ANY(COALESCE(module_ids, '{}')) THEN module_ids
+       ELSE array_append(COALESCE(module_ids, '{}'), $2)
+     END
+     WHERE id = $1`,
+    [projectId, moduleId]
+  );
+};
+
+const removeModuleFromProject = async (projectId, moduleId) => {
+  await query(
+    `UPDATE ${TABLE}
+     SET module_ids = array_remove(COALESCE(module_ids, '{}'), $2)
+     WHERE id = $1`,
+    [projectId, moduleId]
+  );
+};
+
+const removeModuleFromAllProjects = async (moduleId) => {
+  await query(
+    `UPDATE ${TABLE}
+     SET module_ids = array_remove(COALESCE(module_ids, '{}'), $1)
+     WHERE $1 = ANY(COALESCE(module_ids, '{}'))`,
+    [moduleId]
+  );
+};
+
+const syncModuleProject = async (moduleId, newProjectId, oldProjectId) => {
+  if (oldProjectId && Number(oldProjectId) !== Number(newProjectId)) {
+    await removeModuleFromProject(oldProjectId, moduleId);
+  }
+  if (newProjectId) {
+    await addModuleToProject(newProjectId, moduleId);
+  }
+};
+
 module.exports = {
   ...repo,
   findProjectByPlanId,
@@ -100,4 +139,8 @@ module.exports = {
   removePlanFromProject,
   removePlanFromAllProjects,
   syncPlanProject,
+  addModuleToProject,
+  removeModuleFromProject,
+  removeModuleFromAllProjects,
+  syncModuleProject,
 };

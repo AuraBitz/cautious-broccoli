@@ -13,8 +13,13 @@ const {
   intIdArray,
 } = require('./common.schemas');
 
+const { filterPortalModulesByPermission } = require('../utils/filter-portal-modules');
+
 const repo = dataaccess.projectMaster;
 const plansRepo = dataaccess.plansMaster;
+const parentModulesRepo = dataaccess.parentModulesMaster;
+const childModulesRepo = dataaccess.childModuleMaster;
+const permissionsRepo = dataaccess.permissionsMaster;
 
 const createSchema = Joi.object({
   name: Joi.string().trim().min(1).required(),
@@ -84,4 +89,68 @@ const remove = async (id) => {
   return deleteResponse('Project deleted', deleted.id);
 };
 
-module.exports = { list, getById, create, update, remove };
+const getPortalModules = async (id, roleMasterId = null, planId = null) => {
+  const project = await repo.findById(id);
+  if (!project) {
+    throw new AppError('Project not found', 404, 'NOT_FOUND');
+  }
+
+  let moduleIds = (project.module_ids ?? [])
+    .map(Number)
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  if (planId != null && Number.isFinite(Number(planId))) {
+    const parsedPlanId = Number(planId);
+    if (parsedPlanId <= 0) {
+      moduleIds = [];
+    } else {
+      const plan = await plansRepo.findById(parsedPlanId);
+      const planModuleSet = new Set(
+        (plan?.plan_modules_id ?? [])
+          .map(Number)
+          .filter((n) => Number.isFinite(n) && n > 0)
+      );
+      moduleIds = moduleIds.filter((mid) => planModuleSet.has(mid));
+    }
+  }
+
+  const parents = await parentModulesRepo.listByIds(moduleIds);
+  const children = await childModulesRepo.listByParentModuleIds(moduleIds);
+
+  let modules = parents.map((parent) => ({
+    id: parent.id,
+    name: parent.module_name,
+    status: parent.status,
+    children: children
+      .filter((child) => child.parent_module_id === parent.id)
+      .map((child) => ({
+        id: child.id,
+        name: child.child_module_name,
+        parentId: parent.id,
+      })),
+  }));
+
+  const roleId = Number(roleMasterId);
+  if (Number.isFinite(roleId) && roleId > 0) {
+    const permission = await permissionsRepo.findByRoleId(roleId);
+    modules = filterPortalModulesByPermission(
+      modules,
+      permission?.modules ?? {}
+    );
+  }
+
+  const visibleModuleIds = modules.map((mod) => mod.id);
+
+  return itemResponse('Project portal modules fetched', {
+    projectId: project.id,
+    projectName: project.name,
+    moduleIds: visibleModuleIds,
+    planIds: project.plan_ids ?? [],
+    status: project.status,
+    description: project.description,
+    modules,
+    roleMasterId: Number.isFinite(roleId) && roleId > 0 ? roleId : null,
+  });
+};
+
+module.exports = { list, getById, create, update, remove, getPortalModules };

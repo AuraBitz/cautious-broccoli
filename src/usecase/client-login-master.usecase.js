@@ -13,15 +13,19 @@ const {
   optionalMasterStatusSchema,
 } = require('./common.schemas');
 const planBusiness = require('./client-plan.business');
+const projectPermissionUsecase = require('./project-permission-master.usecase');
 
 const SALT_ROUNDS = 10;
 const loginRepo = dataaccess.clientLoginMaster;
+
+const projectRoleRepo = dataaccess.projectRoleMaster;
 
 const createSchema = Joi.object({
   username: Joi.string().trim().min(3).required(),
   email: Joi.string().trim().email().required(),
   password: Joi.string().min(6).required(),
   role: Joi.string().trim().default('client'),
+  project_role_id: Joi.number().integer().positive().allow(null),
   device_id: Joi.string().trim().allow(null, ''),
   status: optionalMasterStatusSchema.default('active'),
 });
@@ -31,9 +35,18 @@ const updateSchema = Joi.object({
   email: Joi.string().trim().email(),
   password: Joi.string().min(6),
   role: Joi.string().trim(),
+  project_role_id: Joi.number().integer().positive().allow(null),
   device_id: Joi.string().trim().allow(null, ''),
   status: optionalMasterStatusSchema,
 }).min(1);
+
+const assertProjectRoleExists = async (projectRoleId) => {
+  if (projectRoleId == null) return;
+  const role = await projectRoleRepo.findById(projectRoleId);
+  if (!role) {
+    throw new AppError('Project role not found', 400, 'INVALID_PROJECT_ROLE');
+  }
+};
 
 const loginSchema = Joi.object({
   username: Joi.string().trim(),
@@ -62,6 +75,7 @@ const list = async (listPayload) => {
 
 const create = async (payload) => {
   const data = validateSchema(createSchema, payload);
+  await assertProjectRoleExists(data.project_role_id ?? null);
   const duplicate = await loginRepo.existsDuplicate({
     username: data.username,
     email: data.email,
@@ -79,6 +93,9 @@ const create = async (payload) => {
 
 const update = async (id, payload) => {
   const data = validateSchema(updateSchema, payload);
+  if (data.project_role_id !== undefined) {
+    await assertProjectRoleExists(data.project_role_id ?? null);
+  }
   const existing = await loginRepo.findById(id);
   if (!existing) {
     throw new AppError('Login account not found', 404, 'NOT_FOUND');
@@ -148,12 +165,17 @@ const login = async (payload) => {
   const accessToken = jwtToken.signAccessToken(
     jwtToken.buildTokenPayload(user)
   );
+  const projectAccess = await projectPermissionUsecase.resolveAccessForLogin(
+    freshAccount.id,
+    freshAccount.role ?? null
+  );
 
   return itemResponse('Login successful', {
     user,
     token: accessToken,
     tokenType: 'Bearer',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    projectAccess,
   });
 };
 
@@ -169,7 +191,15 @@ const me = async (userId) => {
   if (account.status !== 'active') {
     throw new AppError('Account is not active', 403, 'ACCOUNT_INACTIVE');
   }
-  return itemResponse('Profile fetched', account);
+  const projectAccess = await projectPermissionUsecase.resolveAccessForLogin(
+    userId,
+    account.role ?? null
+  );
+
+  return itemResponse('Profile fetched', {
+    ...account,
+    projectAccess,
+  });
 };
 
 module.exports = {

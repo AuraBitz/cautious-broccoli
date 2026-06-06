@@ -38,7 +38,10 @@ module.exports = {
     domain: process.env.COOKIE_DOMAIN || undefined,
   },
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: (process.env.CORS_ORIGIN || 'http://localhost:5173')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
     credentials: true,
   },
 };

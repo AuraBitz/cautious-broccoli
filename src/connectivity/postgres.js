@@ -22,6 +22,7 @@ const connect = async () => {
   });
 
   const client = await pool.connect();
+  await client.query('SET search_path TO public');
   client.release();
   logger.info('Database connected', {
     host: config.db.host,
@@ -31,9 +32,21 @@ const connect = async () => {
   return pool;
 };
 
+const ensureSearchPath = async (client) => {
+  if (client._searchPathSet) return;
+  await client.query('SET search_path TO public');
+  client._searchPathSet = true;
+};
+
 const query = async (text, params) => {
   if (!pool) await connect();
-  return pool.query(text, params);
+  const client = await pool.connect();
+  try {
+    await ensureSearchPath(client);
+    return await client.query(text, params);
+  } finally {
+    client.release();
+  }
 };
 
 const disconnect = async () => {

@@ -13,12 +13,13 @@ const FILTER_COLUMN_MAP = {
   purchase_at: 'pt.purchase_at',
   plan_id: 'pt.plan_id',
   created_at: 'pt.created_at',
-  client_name: 'cm.company_name',
+  client_name: 'rm.restaurant_name',
   username: 'cl.username',
   login_username: 'cl.username',
   plan_type: 'pm.plan_type',
   plan_amount: 'pm.amount',
   plan_validity: 'pm.plan_valid_days',
+  project_id: 'cm.project_id',
 };
 
 const FILTER_FIELDS = Object.keys(FILTER_COLUMN_MAP);
@@ -29,7 +30,7 @@ const LIST_SELECT_SQL = `
   pt.client_login_id,
   pt.purchase_at,
   pt.plan_id,
-  COALESCE(NULLIF(trim(cm.company_name), ''), cm.owner_name) AS client_name,
+  COALESCE(NULLIF(trim(rm.restaurant_name), ''), cm.owner_name) AS client_name,
   cl.username,
   pm.plan_type,
   pm.amount AS plan_amount,
@@ -41,6 +42,7 @@ const FROM_JOIN_SQL = `
   LEFT JOIN client_login_master cl ON cl.id = pt.client_login_id
   LEFT JOIN plans_master pm ON pm.id = pt.plan_id
   LEFT JOIN client_management cm ON cm.login_id = pt.client_login_id
+  LEFT JOIN restaurant_master rm ON rm.id = cm.restaurant_id
 `;
 
 const buildJoinedWhereClause = (filters = {}, fieldTypes = {}) => {

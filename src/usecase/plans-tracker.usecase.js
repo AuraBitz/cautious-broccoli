@@ -2,7 +2,8 @@ const Joi = require('joi');
 const dataaccess = require('../dataaccess');
 const { validateSchema } = require('../utils/joi-validate');
 const { itemResponse, listResponse } = require('../utils/usecase-response');
-const { listQuerySchema } = require('./common.schemas');
+const { listQuerySchema, reportDownloadSchema } = require('./common.schemas');
+const { generatePlansTrackerReport } = require('../excel-report/plans_tracker_report');
 const planBusiness = require('./client-plan.business');
 
 const getPlanSchema = Joi.object({
@@ -29,4 +30,44 @@ const getPlan = async (payload) => {
   return itemResponse('Plan purchased', result, 201);
 };
 
-module.exports = { list, getPlan };
+const downloadReport = async (payload) => {
+  const { start_date: startDate, end_date: endDate } = validateSchema(
+    reportDownloadSchema,
+    payload
+  );
+
+  const filters = {};
+  const hasStart = Boolean(startDate);
+  const hasEnd = Boolean(endDate);
+
+  if (hasStart || hasEnd) {
+    filters.purchase_at = {
+      op: 'date_between',
+      value: [
+        hasStart ? startDate : '1970-01-01',
+        hasEnd ? endDate : new Date().toISOString().slice(0, 10),
+      ],
+    };
+  }
+
+  const result = await dataaccess.plansTracker.list({
+    skip: 0,
+    limit: 10000,
+    sort: { field: 'purchase_at', order: 'desc' },
+    filters,
+  });
+
+  const buffer = await generatePlansTrackerReport({
+    rows: result.rows,
+    startDate: hasStart ? startDate : undefined,
+    endDate: hasEnd ? endDate : undefined,
+  });
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  return {
+    buffer,
+    filename: `plans_tracker_report_${stamp}.xlsx`,
+  };
+};
+
+module.exports = { list, getPlan, downloadReport };

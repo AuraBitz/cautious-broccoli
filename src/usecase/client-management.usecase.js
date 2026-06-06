@@ -2,19 +2,24 @@ const Joi = require('joi');
 const dataaccess = require('../dataaccess');
 const { AppError } = require('../utils');
 const { validateSchema } = require('../utils/joi-validate');
+const { generateClientsMasterReport } = require('../excel-report/clients_master_report');
 const {
   listResponse,
   itemResponse,
   deleteResponse,
 } = require('../utils/usecase-response');
-const { listQuerySchema, CLIENT_PLAN_STATUS } = require('./common.schemas');
+const {
+  listQuerySchema,
+  CLIENT_PLAN_STATUS,
+  reportDownloadSchema,
+} = require('./common.schemas');
 const planBusiness = require('./client-plan.business');
 
 const clientRepo = dataaccess.clientManagement;
 const loginRepo = dataaccess.clientLoginMaster;
 
 const createSchema = Joi.object({
-  company_name: Joi.string().trim().min(1).required(),
+  restaurant_id: Joi.number().integer().positive().required(),
   owner_name: Joi.string().trim().min(1).required(),
   mobile: Joi.string().trim().allow(null, ''),
   email: Joi.string().trim().email().allow(null, ''),
@@ -33,9 +38,17 @@ const createSchema = Joi.object({
 });
 
 const updateSchema = createSchema.fork(
-  ['company_name', 'owner_name'],
+  ['restaurant_id', 'owner_name'],
   (field) => field.optional()
 );
+
+const assertRestaurantExists = async (restaurantId) => {
+  if (restaurantId == null) return;
+  const exists = await dataaccess.restaurantMaster.existsById(restaurantId);
+  if (!exists) {
+    throw new AppError('restaurant_id not found', 400, 'INVALID_RESTAURANT_ID');
+  }
+};
 
 const assertLoginExists = async (loginId) => {
   if (loginId == null) return;
@@ -62,6 +75,7 @@ const list = async (listPayload) => {
 
 const create = async (payload) => {
   const data = validateSchema(createSchema, payload);
+  await assertRestaurantExists(data.restaurant_id);
   await assertLoginExists(data.login_id);
   await assertPlanExists(data.plan_id);
 
@@ -93,6 +107,9 @@ const update = async (id, payload) => {
     throw new AppError('Client not found', 404, 'NOT_FOUND');
   }
 
+  if (data.restaurant_id !== undefined) {
+    await assertRestaurantExists(data.restaurant_id);
+  }
   await assertLoginExists(data.login_id);
   if (data.plan_id !== undefined) {
     await assertPlanExists(data.plan_id);
@@ -158,4 +175,45 @@ const remove = async (id) => {
   return deleteResponse('Client deleted', deleted.id);
 };
 
-module.exports = { list, getById, create, update, remove };
+const downloadReport = async (payload) => {
+  const { start_date: startDate, end_date: endDate } = validateSchema(
+    reportDownloadSchema,
+    payload
+  );
+
+  const filters = {};
+  const hasStart = Boolean(startDate);
+  const hasEnd = Boolean(endDate);
+
+  if (hasStart || hasEnd) {
+    filters.created_at = {
+      op: 'date_between',
+      value: [
+        hasStart ? startDate : '1970-01-01',
+        hasEnd ? endDate : new Date().toISOString().slice(0, 10),
+      ],
+    };
+  }
+
+  const result = await clientRepo.list({
+    skip: 0,
+    limit: 10000,
+    sort: { field: 'created_at', order: 'desc' },
+    filters,
+  });
+
+  const rows = await planBusiness.syncClientsPlan(result.rows);
+  const buffer = await generateClientsMasterReport({
+    rows,
+    startDate: hasStart ? startDate : undefined,
+    endDate: hasEnd ? endDate : undefined,
+  });
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  return {
+    buffer,
+    filename: `clients_master_report_${stamp}.xlsx`,
+  };
+};
+
+module.exports = { list, getById, create, update, remove, downloadReport };
