@@ -24,8 +24,10 @@ const restaurantTableMaster = require('./restaurant-table-master.controller');
 const restaurantBookingMaster = require('./restaurant-booking-master.controller');
 const restaurantTransactionMaster = require('./restaurant-transaction-master.controller');
 const restaurantOrderManagement = require('./restaurant-order-management.controller');
+const restaurantOrderMaster = require('./restaurant-order-master.controller');
 const restaurantPaymentMaster = require('./restaurant-payment-master.controller');
 const restaurantLiveTableMatrixMaster = require('./restaurant-live-table-matrix-master.controller');
+const restaurantCallWaiter = require('./restaurant-call-waiter.controller');
 
 const healthCheck = async (req, res, next) => {
   try {
@@ -73,6 +75,8 @@ module.exports = {
   restaurantBookingMaster,
   restaurantTransactionMaster,
   restaurantOrderManagement,
+  restaurantOrderMaster,
   restaurantPaymentMaster,
   restaurantLiveTableMatrixMaster,
+  restaurantCallWaiter,
 };

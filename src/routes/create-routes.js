@@ -29,8 +29,10 @@ const createRoutes = () => {
     restaurantBookingMaster,
     restaurantTransactionMaster,
     restaurantOrderManagement,
+    restaurantOrderMaster,
     restaurantPaymentMaster,
     restaurantLiveTableMatrixMaster,
+    restaurantCallWaiter,
   } = controller;
 
   router.post('/public/restaurant-master/list', restaurantMaster.publicList);
@@ -41,11 +43,37 @@ const createRoutes = () => {
   );
   router.post(
     '/public/restaurant-booking-master',
-    restaurantBookingMaster.create
+    restaurantBookingMaster.publicCreate
+  );
+  router.get(
+    '/public/restaurant-booking-master/:id',
+    restaurantBookingMaster.getById
   );
   router.get(
     '/public/restaurant-menu-master/by-restaurant/:restaurantId',
     restaurantMenuMaster.listByRestaurant
+  );
+  router.post('/public/restaurant-call-waiter', restaurantCallWaiter.create);
+  router.get(
+    '/public/restaurant-call-waiter/by-restaurant/:restaurantId',
+    restaurantCallWaiter.listRecentByRestaurant
+  );
+  router.post('/public/restaurant-order-master', restaurantOrderMaster.publicCreate);
+  router.post(
+    '/public/restaurant-order-master/ensure-active',
+    restaurantOrderMaster.publicEnsureActive
+  );
+  router.get(
+    '/public/restaurant-order-master/active',
+    restaurantOrderMaster.publicGetActive
+  );
+  router.get(
+    '/public/restaurant-order-master/:id',
+    restaurantOrderMaster.publicGetById
+  );
+  router.patch(
+    '/public/restaurant-order-master/:id',
+    restaurantOrderMaster.publicUpdate
   );
 
   router.use(authMiddleware);
@@ -242,6 +270,12 @@ const createRoutes = () => {
   router.patch('/restaurant-order-management/:id', restaurantOrderManagement.update);
   router.delete('/restaurant-order-management/:id', restaurantOrderManagement.remove);
 
+  router.post('/restaurant-order-master/list', restaurantOrderMaster.list);
+  router.get('/restaurant-order-master/:id', restaurantOrderMaster.getById);
+  router.post('/restaurant-order-master', restaurantOrderMaster.create);
+  router.patch('/restaurant-order-master/:id', restaurantOrderMaster.update);
+  router.delete('/restaurant-order-master/:id', restaurantOrderMaster.remove);
+
   router.post('/restaurant-payment-master/list', restaurantPaymentMaster.list);
   router.get('/restaurant-payment-master/:id', restaurantPaymentMaster.getById);
   router.post('/restaurant-payment-master', restaurantPaymentMaster.create);
@@ -265,6 +299,16 @@ const createRoutes = () => {
     '/restaurant-live-table-matrix-master/:id',
     restaurantLiveTableMatrixMaster.remove
   );
+
+  router.post('/restaurant-call-waiter/list', restaurantCallWaiter.list);
+  router.get(
+    '/restaurant-call-waiter/by-restaurant/:restaurantId',
+    restaurantCallWaiter.listRecentByRestaurant
+  );
+  router.get('/restaurant-call-waiter/:id', restaurantCallWaiter.getById);
+  router.post('/restaurant-call-waiter', restaurantCallWaiter.create);
+  router.patch('/restaurant-call-waiter/:id', restaurantCallWaiter.update);
+  router.delete('/restaurant-call-waiter/:id', restaurantCallWaiter.remove);
 
   return router;
 };

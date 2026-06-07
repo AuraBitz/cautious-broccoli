@@ -9,6 +9,7 @@ const {
 } = require('../utils/usecase-response');
 const { listQuerySchema } = require('./common.schemas');
 const { syncLiveMatrixForBooking } = require('../utils/live-matrix-sync');
+const { syncCustomerFromBooking } = require('../utils/sync-booking-customer');
 
 const repo = dataaccess.restaurantBookingMaster;
 const restaurantRepo = dataaccess.restaurantMaster;
@@ -28,6 +29,7 @@ const createSchema = Joi.object({
     .default('pending'),
   persons_count: Joi.number().integer().min(1).default(1),
   table_id: Joi.number().integer().positive().allow(null),
+  is_manual_booking: Joi.boolean().default(false),
 });
 
 const updateSchema = Joi.object({
@@ -41,6 +43,7 @@ const updateSchema = Joi.object({
     .valid('pending', 'confirmed', 'cancelled', 'completed'),
   persons_count: Joi.number().integer().min(1),
   table_id: Joi.number().integer().positive().allow(null),
+  is_manual_booking: Joi.boolean(),
 }).min(1);
 
 const list = async (listPayload) => {
@@ -55,52 +58,6 @@ const getById = async (id) => {
     throw new AppError('Restaurant booking not found', 404, 'NOT_FOUND');
   }
   return itemResponse('Restaurant booking fetched', row);
-};
-
-const syncCustomerFromCompletedBooking = async (booking) => {
-  if (booking.booking_status !== 'completed') return booking;
-
-  const restaurantId = Number(booking.restaurant_id);
-  const name = (booking.customer_name || '').trim();
-  const phone = (booking.customer_phone || '').trim();
-
-  if (!name && !phone) return booking;
-
-  if (booking.customer_id) {
-    const linked = await customerRepo.findById(booking.customer_id);
-    if (linked && Number(linked.restaurant_id) === restaurantId) {
-      return booking;
-    }
-  }
-
-  let customerId = booking.customer_id;
-
-  if (!customerId && phone) {
-    const existing = await customerRepo.findByRestaurantAndPhone(
-      restaurantId,
-      phone
-    );
-    if (existing) customerId = existing.id;
-  }
-
-  if (!customerId) {
-    const created = await customerRepo.create({
-      restaurant_id: restaurantId,
-      customer_name: name || 'Guest',
-      phone: phone || null,
-      is_not_login: true,
-      current_status: 'active',
-      is_manual_booking: true,
-    });
-    customerId = created.id;
-  }
-
-  if (Number(booking.customer_id) !== Number(customerId)) {
-    await repo.update(booking.id, { customer_id: customerId });
-    return (await repo.findById(booking.id)) ?? booking;
-  }
-
-  return booking;
 };
 
 const create = async (payload) => {
@@ -123,7 +80,7 @@ const create = async (payload) => {
   const row = await repo.create(data);
   let enriched = await repo.findById(row.id);
   if (enriched) {
-    enriched = await syncCustomerFromCompletedBooking(enriched);
+    enriched = await syncCustomerFromBooking(enriched, repo);
     if (enriched.table_id) {
       await syncLiveMatrixForBooking(
         enriched.restaurant_id,
@@ -156,7 +113,7 @@ const update = async (id, payload) => {
   await repo.update(id, data);
   let enriched = await repo.findById(id);
   if (enriched) {
-    enriched = await syncCustomerFromCompletedBooking(enriched);
+    enriched = await syncCustomerFromBooking(enriched, repo);
     const oldTableId = existing.table_id;
     const newTableId = enriched.table_id;
     const statusChanged =

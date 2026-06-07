@@ -17,7 +17,6 @@ const COLUMNS = [
   'customer_login_id',
   'is_not_login',
   'current_status',
-  'is_manual_booking',
   'address',
   'created_at',
 ];
@@ -31,7 +30,6 @@ const LIST_SELECT = `
   rcm.customer_login_id,
   rcm.is_not_login,
   rcm.current_status,
-  rcm.is_manual_booking,
   rcm.address,
   rcm.created_at,
   rm.restaurant_name
@@ -51,7 +49,6 @@ const FILTER_COLUMN_MAP = {
   customer_login_id: 'rcm.customer_login_id',
   is_not_login: 'rcm.is_not_login',
   current_status: 'rcm.current_status',
-  is_manual_booking: 'rcm.is_manual_booking',
   address: 'rcm.address',
   created_at: 'rcm.created_at',
   restaurant_name: 'rm.restaurant_name',
@@ -83,7 +80,6 @@ const repo = createCrudRepository({
     'customer_login_id',
     'is_not_login',
     'current_status',
-    'is_manual_booking',
     'address',
   ],
   updatableColumns: [
@@ -93,7 +89,6 @@ const repo = createCrudRepository({
     'customer_login_id',
     'is_not_login',
     'current_status',
-    'is_manual_booking',
     'address',
   ],
   defaultSortField: 'created_at',

@@ -1,22 +1,10 @@
 const dataaccess = require('../dataaccess');
+const { toIstIsoTimestamp, computeRemainDays } = require('../utils/plan-date');
 
 const EXPIRED_PLAN_STATUS = 'Deactivate';
 const ACTIVE_PLAN_STATUS = 'Active';
 const EXPIRED_LOGIN_STATUS = 'inactive';
 const ACTIVE_LOGIN_STATUS = 'active';
-
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-const computeRemainDays = (planStartAt, planValidDays) => {
-  if (!planStartAt || planValidDays == null) return null;
-
-  const start = new Date(planStartAt);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + Number(planValidDays));
-
-  const diffMs = end.getTime() - Date.now();
-  return Math.max(0, Math.ceil(diffMs / MS_PER_DAY));
-};
 
 const buildPlanMap = (plans) =>
   plans.reduce((map, plan) => {
@@ -90,7 +78,8 @@ const applyPlanSync = async (client, planMap, trackerMap = {}) => {
   const needsUpdate =
     client.plan_remain_days !== remainDays ||
     client.plan_status === EXPIRED_PLAN_STATUS ||
-    client.plan_id !== planId;
+    client.plan_id !== planId ||
+    String(client.plan_start_at) !== String(planStartAt);
 
   if (needsUpdate) {
     const updatedClient = await dataaccess.clientManagement.update(client.id, {
@@ -126,6 +115,45 @@ const applyPlanSync = async (client, planMap, trackerMap = {}) => {
   };
 };
 
+const resolveOwnerName = async (client, clientLoginId) => {
+  const existing = (client.owner_name || '').trim();
+  if (existing) return existing;
+
+  const login = await dataaccess.clientLoginMaster.findById(clientLoginId);
+  const fromLogin = (login?.username || '').trim();
+  return fromLogin || existing;
+};
+
+const createPlanPurchaseTransaction = async ({
+  client,
+  plan,
+  planId,
+  purchaseIso,
+}) => {
+  const cashType = await dataaccess.paymentTypeMaster.findByTypeName('cash');
+  if (!cashType) {
+    const { AppError } = require('../utils');
+    throw new AppError(
+      'Cash payment type not found. Add "cash" in Payment Type Master.',
+      400,
+      'CASH_PAYMENT_TYPE_MISSING'
+    );
+  }
+
+  const transactionNo = `PLAN-${Date.now()}-${client.id}`;
+
+  await dataaccess.transactionsMaster.create({
+    payment_type_id: cashType.id,
+    customer_id: client.id,
+    project_id: client.project_id ?? plan.project_id ?? null,
+    plan_id: planId,
+    transaction_date: purchaseIso,
+    transaction_no: transactionNo,
+    number: client.mobile || null,
+    account: plan.plan_type ? `Plan purchase: ${plan.plan_type}` : 'Plan purchase',
+  });
+};
+
 const recordPlanPurchase = async ({
   clientLoginId,
   planId,
@@ -155,8 +183,19 @@ const recordPlanPurchase = async ({
     );
   }
 
-  const purchaseIso =
-    purchaseAt instanceof Date ? purchaseAt.toISOString() : purchaseAt;
+  const purchaseIso = toIstIsoTimestamp(
+    purchaseAt instanceof Date ? purchaseAt : new Date(purchaseAt)
+  );
+
+  const ownerName = await resolveOwnerName(client, clientLoginId);
+  const clientPatch = {
+    plan_id: planId,
+    plan_start_at: purchaseIso,
+    applied_at: purchaseIso,
+  };
+  if (ownerName && ownerName !== (client.owner_name || '').trim()) {
+    clientPatch.owner_name = ownerName;
+  }
 
   const tracker = await dataaccess.plansTracker.create({
     client_login_id: clientLoginId,
@@ -168,11 +207,9 @@ const recordPlanPurchase = async ({
   const isExpired = remainDays === 0;
 
   const updatedClient = await dataaccess.clientManagement.update(client.id, {
-    plan_id: planId,
-    plan_start_at: purchaseIso,
+    ...clientPatch,
     plan_remain_days: remainDays,
     plan_status: isExpired ? EXPIRED_PLAN_STATUS : ACTIVE_PLAN_STATUS,
-    applied_at: purchaseIso,
   });
 
   await dataaccess.clientLoginMaster.updateStatus(
@@ -180,11 +217,19 @@ const recordPlanPurchase = async ({
     isExpired ? EXPIRED_LOGIN_STATUS : ACTIVE_LOGIN_STATUS
   );
 
+  await createPlanPurchaseTransaction({
+    client: updatedClient || client,
+    plan,
+    planId,
+    purchaseIso,
+  });
+
   return {
     tracker,
     client: updatedClient,
     plan_remain_days: remainDays,
     plan_status: isExpired ? EXPIRED_PLAN_STATUS : ACTIVE_PLAN_STATUS,
+    plan_start_at: purchaseIso,
   };
 };
 

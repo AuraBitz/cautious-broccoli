@@ -19,6 +19,7 @@ const COLUMNS = [
   'booking_status',
   'persons_count',
   'table_id',
+  'is_manual_booking',
   'created_at',
 ];
 
@@ -33,6 +34,7 @@ const LIST_SELECT = `
   rbm.booking_status,
   rbm.persons_count,
   rbm.table_id,
+  rbm.is_manual_booking,
   rbm.created_at,
   rm.restaurant_name,
   rtm.table_number,
@@ -59,6 +61,7 @@ const FILTER_COLUMN_MAP = {
   booking_date: 'rbm.booking_date',
   persons_count: 'rbm.persons_count',
   table_id: 'rbm.table_id',
+  is_manual_booking: 'rbm.is_manual_booking',
   created_at: 'rbm.created_at',
   restaurant_name: 'rm.restaurant_name',
   table_number: 'rtm.table_number',
@@ -94,6 +97,7 @@ const repo = createCrudRepository({
     'booking_status',
     'persons_count',
     'table_id',
+    'is_manual_booking',
   ],
   updatableColumns: [
     'customer_id',
@@ -104,6 +108,7 @@ const repo = createCrudRepository({
     'booking_status',
     'persons_count',
     'table_id',
+    'is_manual_booking',
   ],
   defaultSortField: 'created_at',
   filterFields: FILTER_FIELDS,
@@ -160,7 +165,7 @@ const listActiveByRestaurantId = async (restaurantId) => {
       rtm.floor_id
     ${FROM_SQL}
     WHERE rbm.restaurant_id = $1
-      AND rbm.booking_status IN ('pending', 'confirmed', 'completed')
+      AND rbm.booking_status IN ('pending', 'confirmed')
       AND (rbm.table_id IS NOT NULL OR rtm.table_number IS NOT NULL)`,
     [restaurantId]
   );

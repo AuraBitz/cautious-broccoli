@@ -20,7 +20,6 @@ const createSchema = Joi.object({
   customer_login_id: Joi.number().integer().positive().allow(null),
   is_not_login: Joi.boolean().default(true),
   current_status: Joi.string().trim().max(50).default('active'),
-  is_manual_booking: Joi.boolean().default(false),
   address: Joi.string().trim().allow(null, ''),
 });
 
@@ -31,7 +30,6 @@ const updateSchema = Joi.object({
   customer_login_id: Joi.number().integer().positive().allow(null),
   is_not_login: Joi.boolean(),
   current_status: Joi.string().trim().max(50),
-  is_manual_booking: Joi.boolean(),
   address: Joi.string().trim().allow(null, ''),
 }).min(1);
 

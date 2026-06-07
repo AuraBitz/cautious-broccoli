@@ -7,9 +7,11 @@ const STATUS_RANK = { free: 0, reserved: 1, busy: 2 };
 
 const mapBookingStatusToLive = (status) => {
   const s = (status ?? 'available').toLowerCase();
-  if (s === 'cancelled') return 'free';
-  if (s === 'reserved' || s === 'confirmed' || s === 'pending') return 'reserved';
-  if (s === 'busy' || s === 'occupied' || s === 'booked' || s === 'completed') {
+  if (s === 'cancelled' || s === 'completed' || s === 'available' || s === 'free') {
+    return 'free';
+  }
+  if (s === 'pending' || s === 'reserved') return 'reserved';
+  if (s === 'confirmed' || s === 'busy' || s === 'occupied' || s === 'booked') {
     return 'busy';
   }
   return 'free';
@@ -48,11 +50,7 @@ const applyStatusToMatrix = (matrix, booking, { bumpVersion = true } = {}) => {
     ...floor,
     tables: (floor.tables ?? []).map((table) => {
       if (!tableMatchesBooking(table, { tableId, tableNumber })) return table;
-      const current = table.status ?? 'free';
-      if (STATUS_RANK[newStatus] >= STATUS_RANK[current]) {
-        return { ...table, status: newStatus };
-      }
-      return table;
+      return { ...table, status: newStatus };
     }),
   }));
 
@@ -64,11 +62,37 @@ const applyStatusToMatrix = (matrix, booking, { bumpVersion = true } = {}) => {
 };
 
 const overlayBookingsOnMatrix = (matrix, bookings = []) => {
-  if (!matrix?.floors?.length || !bookings.length) return matrix;
-  return bookings.reduce(
-    (next, booking) => applyStatusToMatrix(next, booking, { bumpVersion: false }),
-    matrix
-  );
+  if (!matrix?.floors?.length) return matrix;
+
+  const floors = matrix.floors.map((floor) => ({
+    ...floor,
+    tables: (floor.tables ?? []).map((table) => {
+      let bestStatus = 'free';
+      let bestRank = STATUS_RANK.free;
+
+      for (const booking of bookings) {
+        if (
+          !tableMatchesBooking(table, {
+            tableId: booking.table_id,
+            tableNumber: booking.table_number,
+          })
+        ) {
+          continue;
+        }
+
+        const mapped = mapBookingStatusToLive(booking.booking_status);
+        const rank = STATUS_RANK[mapped] ?? STATUS_RANK.free;
+        if (rank >= bestRank) {
+          bestRank = rank;
+          bestStatus = mapped;
+        }
+      }
+
+      return { ...table, status: bestStatus };
+    }),
+  }));
+
+  return { ...matrix, floors };
 };
 
 const syncLiveMatrixForBooking = async (restaurantId, tableId, bookingStatus) => {

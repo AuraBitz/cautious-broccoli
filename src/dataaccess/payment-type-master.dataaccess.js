@@ -108,8 +108,20 @@ const findById = async (id) => {
   return result.rows[0] || null;
 };
 
+const findByTypeName = async (typeName) => {
+  const result = await query(
+    `SELECT id, type, status
+     FROM ${TABLE}
+     WHERE LOWER(TRIM(type)) = LOWER(TRIM($1))
+     LIMIT 1`,
+    [typeName]
+  );
+  return result.rows[0] || null;
+};
+
 module.exports = {
   ...repo,
   list,
   findById,
+  findByTypeName,
 };

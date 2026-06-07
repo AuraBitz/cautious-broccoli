@@ -24,8 +24,10 @@ const restaurantTableMaster = require('./restaurant-table-master.dataaccess');
 const restaurantBookingMaster = require('./restaurant-booking-master.dataaccess');
 const restaurantTransactionMaster = require('./restaurant-transaction-master.dataaccess');
 const restaurantOrderManagement = require('./restaurant-order-management.dataaccess');
+const restaurantOrderMaster = require('./restaurant-order-master.dataaccess');
 const restaurantPaymentMaster = require('./restaurant-payment-master.dataaccess');
 const restaurantLiveTableMatrixMaster = require('./restaurant-live-table-matrix-master.dataaccess');
+const restaurantCallWaiter = require('./restaurant-call-waiter.dataaccess');
 
 const healthCheck = async () => {
   await query('SELECT 1 AS ok');
@@ -61,6 +63,8 @@ module.exports = {
   restaurantBookingMaster,
   restaurantTransactionMaster,
   restaurantOrderManagement,
+  restaurantOrderMaster,
   restaurantPaymentMaster,
   restaurantLiveTableMatrixMaster,
+  restaurantCallWaiter,
 };

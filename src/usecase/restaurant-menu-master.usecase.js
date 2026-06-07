@@ -17,25 +17,38 @@ const menuItemSchema = Joi.object({
   name: Joi.string().trim().min(1).required(),
   amount: Joi.number().min(0).required(),
   image: Joi.string().trim().allow(null, ''),
+  available_status: Joi.string().valid('available', 'not_available').default('available'),
 });
 
 const menuCategorySchema = Joi.object({
   id: Joi.alternatives().try(Joi.number(), Joi.string()).optional(),
   title: Joi.string().trim().min(1).required(),
+  available_status: Joi.string().valid('available', 'not_available').default('available'),
   items: Joi.array().items(menuItemSchema).default([]),
 });
 
+const normalizeAvailableStatus = (value) =>
+  value === 'not_available' ? 'not_available' : 'available';
+
 const normalizeMenuItems = (items = []) =>
-  items.map((cat, ci) => ({
-    id: cat.id ?? ci + 1,
-    title: String(cat.title ?? '').trim(),
-    items: (cat.items ?? []).map((item, ii) => ({
-      id: item.id ?? ii + 1,
-      name: String(item.name ?? '').trim(),
-      amount: Number(item.amount) || 0,
-      image: item.image ? String(item.image).trim() : null,
-    })),
-  }));
+  items.map((cat, ci) => {
+    const categoryStatus = normalizeAvailableStatus(cat.available_status);
+    return {
+      id: cat.id ?? ci + 1,
+      title: String(cat.title ?? '').trim(),
+      available_status: categoryStatus,
+      items: (cat.items ?? []).map((item, ii) => ({
+        id: item.id ?? ii + 1,
+        name: String(item.name ?? '').trim(),
+        amount: Number(item.amount) || 0,
+        image: item.image ? String(item.image).trim() : null,
+        available_status:
+          categoryStatus === 'not_available'
+            ? 'not_available'
+            : normalizeAvailableStatus(item.available_status),
+      })),
+    };
+  });
 
 const createSchema = Joi.object({
   restaurant_id: Joi.number().integer().positive().required(),

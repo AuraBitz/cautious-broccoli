@@ -11,6 +11,9 @@ const COLUMNS = [
   'plan_modules_id',
   'amount',
   'discount_amount',
+  'features',
+  'range_type',
+  'project_id',
   'created_at',
   'created_by',
   'updated_at',
@@ -20,7 +23,7 @@ const COLUMNS = [
 const PROJECT_NAME_SQL = `(
   SELECT p.name
   FROM project_master p
-  WHERE ${TABLE}.id = ANY(COALESCE(p.plan_ids, '{}'))
+  WHERE p.id = ${TABLE}.project_id
   LIMIT 1
 ) AS project_name`;
 
@@ -32,6 +35,8 @@ const FILTER_FIELDS = [
   'plan_valid_days',
   'amount',
   'discount_amount',
+  'range_type',
+  'project_id',
   'created_at',
   'created_by',
   'updated_at',
@@ -47,6 +52,9 @@ const repo = createCrudRepository({
     'plan_modules_id',
     'amount',
     'discount_amount',
+    'features',
+    'range_type',
+    'project_id',
     'created_by',
     'updated_by',
   ],
@@ -56,6 +64,9 @@ const repo = createCrudRepository({
     'plan_modules_id',
     'amount',
     'discount_amount',
+    'features',
+    'range_type',
+    'project_id',
     'updated_by',
   ],
   defaultSortField: 'created_at',
@@ -101,6 +112,8 @@ const create = async (payload) =>
   repo.create({
     ...payload,
     plan_modules_id: payload.plan_modules_id || [],
+    features: Array.isArray(payload.features) ? payload.features : [],
+    range_type: payload.range_type === 'annually' ? 'annually' : 'monthly',
     updated_by: payload.created_by ?? payload.updated_by ?? null,
   });
 

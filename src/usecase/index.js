@@ -24,8 +24,10 @@ const restaurantTableMaster = require('./restaurant-table-master.usecase');
 const restaurantBookingMaster = require('./restaurant-booking-master.usecase');
 const restaurantTransactionMaster = require('./restaurant-transaction-master.usecase');
 const restaurantOrderManagement = require('./restaurant-order-management.usecase');
+const restaurantOrderMaster = require('./restaurant-order-master.usecase');
 const restaurantPaymentMaster = require('./restaurant-payment-master.usecase');
 const restaurantLiveTableMatrixMaster = require('./restaurant-live-table-matrix-master.usecase');
+const restaurantCallWaiter = require('./restaurant-call-waiter.usecase');
 
 const healthCheck = async () => {
   const data = await dataaccess.healthCheck();
@@ -61,6 +63,8 @@ module.exports = {
   restaurantBookingMaster,
   restaurantTransactionMaster,
   restaurantOrderManagement,
+  restaurantOrderMaster,
   restaurantPaymentMaster,
   restaurantLiveTableMatrixMaster,
+  restaurantCallWaiter,
 };

@@ -20,6 +20,8 @@ const createSchema = Joi.object({
   plan_modules_id: intIdArray,
   amount: Joi.number().min(0).default(0),
   discount_amount: Joi.number().min(0).default(0),
+  features: Joi.array().items(Joi.string().trim().max(500)).default([]),
+  range_type: Joi.string().trim().valid('monthly', 'annually').default('monthly'),
   created_by: Joi.number().integer().positive().allow(null),
   updated_by: Joi.number().integer().positive().allow(null),
 });
@@ -31,6 +33,8 @@ const updateSchema = Joi.object({
   plan_modules_id: intIdArray,
   amount: Joi.number().min(0),
   discount_amount: Joi.number().min(0),
+  features: Joi.array().items(Joi.string().trim().max(500)),
+  range_type: Joi.string().trim().valid('monthly', 'annually'),
   updated_by: Joi.number().integer().positive().allow(null),
 }).min(1);
 
@@ -54,19 +58,34 @@ const assertProjectExists = async (projectId) => {
   }
 };
 
-const pickPlanPayload = (data) => {
-  const { project_id: _projectId, ...planData } = data;
-  return planData;
-};
+const pickPlanPayload = (data) => ({
+  plan_type: data.plan_type,
+  plan_valid_days: data.plan_valid_days,
+  plan_modules_id: data.plan_modules_id,
+  amount: data.amount,
+  discount_amount: data.discount_amount,
+  features: data.features,
+  range_type: data.range_type,
+  project_id: data.project_id,
+  created_by: data.created_by,
+  updated_by: data.updated_by,
+});
 
 const withProjectMeta = async (row) => {
   if (!row) return row;
-  if (row.project_name != null) return row;
+  if (row.project_name != null && row.project_id != null) return row;
+  if (row.project_id) {
+    const project = await projectRepo.findById(row.project_id);
+    return {
+      ...row,
+      project_name: project?.name ?? row.project_name ?? null,
+    };
+  }
   const project = await projectRepo.findProjectByPlanId(row.id);
   return {
     ...row,
     project_name: project?.name ?? null,
-    project_id: project?.id ?? null,
+    project_id: project?.id ?? row.project_id ?? null,
   };
 };
 
